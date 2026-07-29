@@ -390,21 +390,6 @@ const server = createServer(async (request, response) => {
     try {
       const runtime = runtimeSnapshot();
       const payload = await readJson(request);
-      if (payload.libraryName) {
-        await updateKnowledgeBaseSettings(runtime.projectRoot, payload);
-        const updated = await updateProfile(
-          serviceRoot,
-          runtime.profile.id,
-          { libraryName: payload.libraryName },
-          defaultSiteBaseUrl,
-        );
-        profileState = {
-          activeProfileId: updated.activeProfileId,
-          profiles: updated.profiles,
-          version: updated.version,
-        };
-        currentProfile = activeProfile(profileState);
-      }
       const result = await saveConversation(runtime.projectRoot, payload, { classifier: runtime.classifier });
       sendJson(
         response,

@@ -211,7 +211,6 @@
         classificationMode: state.classificationMode,
         fixedCollectionId: state.fixedCollectionId,
         fixedCollectionTitle: state.fixedCollectionTitle,
-        libraryName: state.libraryName,
         messages,
         sourceUrl: location.href,
         syncScope: state.syncScope,
