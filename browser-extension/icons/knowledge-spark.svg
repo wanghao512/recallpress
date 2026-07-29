@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title description">
+  <title id="title">Knowledge Spark</title>
+  <desc id="description">A warm terracotta knowledge bloom on a soft ivory tile.</desc>
+  <defs>
+    <linearGradient id="tile" x1="20" y1="12" x2="108" y2="118" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF9F0"/>
+      <stop offset=".58" stop-color="#F7EBDD"/>
+      <stop offset="1" stop-color="#ECD6C3"/>
+    </linearGradient>
+    <linearGradient id="petal" x1="38" y1="28" x2="91" y2="101" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E98962"/>
+      <stop offset=".52" stop-color="#C96243"/>
+      <stop offset="1" stop-color="#A84732"/>
+    </linearGradient>
+    <filter id="tileShadow" x="-18%" y="-14%" width="136%" height="148%">
+      <feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#6C3528" flood-opacity=".16"/>
+    </filter>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="30" fill="url(#tile)" filter="url(#tileShadow)"/>
+  <rect x="8.75" y="8.75" width="110.5" height="110.5" rx="29.25" fill="none" stroke="#FFF" stroke-opacity=".72" stroke-width="1.5"/>
+  <g fill="url(#petal)">
+    <rect x="57" y="25" width="14" height="31" rx="7"/>
+    <rect x="57" y="72" width="14" height="31" rx="7"/>
+    <rect x="57" y="25" width="14" height="31" rx="7" transform="rotate(60 64 64)"/>
+    <rect x="57" y="72" width="14" height="31" rx="7" transform="rotate(60 64 64)"/>
+    <rect x="57" y="25" width="14" height="31" rx="7" transform="rotate(120 64 64)"/>
+    <rect x="57" y="72" width="14" height="31" rx="7" transform="rotate(120 64 64)"/>
+  </g>
+  <path d="M64 52.5 74 58v12L64 75.5 54 70V58l10-5.5Z" fill="#713426"/>
+  <circle cx="64" cy="64" r="4" fill="#FFF5E9"/>
+</svg>

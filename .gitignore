@@ -1,0 +1,13 @@
+
+node_modules/
+.env
+.env.local
+!.env.example
+.chatgpt-sync/
+.DS_Store
+.releases/
+src/interview/chatgpt/**
+!src/interview/chatgpt/README.md
+src/.vuepress/.cache/
+src/.vuepress/.temp/
+src/.vuepress/dist/

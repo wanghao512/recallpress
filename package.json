@@ -1,0 +1,50 @@
+{
+  "name": "chatgpt-vuepress-knowledge-base",
+  "description": "Turn ChatGPT conversations into a structured, searchable VuePress knowledge base.",
+  "version": "2.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "keywords": [
+    "chatgpt",
+    "chrome-extension",
+    "knowledge-base",
+    "openai-compatible",
+    "vuepress"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@10.26.2",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wanghao512/chatgpt-vuepress-knowledge-base.git"
+  },
+  "homepage": "https://github.com/wanghao512/chatgpt-vuepress-knowledge-base#readme",
+  "bugs": {
+    "url": "https://github.com/wanghao512/chatgpt-vuepress-knowledge-base/issues"
+  },
+  "scripts": {
+    "chatgpt-sync": "node tools/chatgpt-sync/server.mjs",
+    "dev:sync": "node tools/chatgpt-sync/dev.mjs",
+    "docs:build": "vuepress-vite build src",
+    "docs:clean-dev": "vuepress-vite dev src --clean-cache",
+    "docs:dev": "vuepress-vite dev src",
+    "docs:update-package": "pnpm dlx vp-update",
+    "migrate:chatgpt-sync": "node tools/chatgpt-sync/migrate-legacy.mjs",
+    "test:sync": "node --test tools/chatgpt-sync/*.test.mjs"
+  },
+  "devDependencies": {
+    "@vuepress/bundler-vite": "2.0.0-rc.30",
+    "katex": "^0.16.47",
+    "sass-embedded": "^1.99.0",
+    "vue": "^3.5.34",
+    "vuepress": "2.0.0-rc.30",
+    "vuepress-theme-hope": "2.0.0-rc.107"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

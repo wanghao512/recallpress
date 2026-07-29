@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 私密安全报告
+    url: https://github.com/wanghao512/chatgpt-vuepress-knowledge-base/security/advisories/new
+    about: API Key 泄露或漏洞请使用 Security Advisory，不要公开提交。
