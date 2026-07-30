@@ -1,4 +1,4 @@
-# ChatGPT 对话同步到 VuePress
+# RecallPress 使用指南
 
 ## 一次性安装 Chrome 扩展
 

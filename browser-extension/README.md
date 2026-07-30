@@ -1,4 +1,4 @@
-# ChatGPT · VuePress 知识库助手
+# RecallPress 浏览器扩展
 
 ## 安装
 

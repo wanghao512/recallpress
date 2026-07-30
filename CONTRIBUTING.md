@@ -1,6 +1,6 @@
 # 参与贡献
 
-感谢你帮助改进 ChatGPT · VuePress 知识库助手。
+感谢你帮助改进 RecallPress。
 
 ## 开发流程
 

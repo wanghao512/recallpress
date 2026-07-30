@@ -131,7 +131,7 @@ const server = createServer(async (request, response) => {
         },
         profile: publicActiveProfile(),
         ok: true,
-        service: "chatgpt-vuepress-sync",
+        service: "recallpress-sync",
       },
       origin,
     );

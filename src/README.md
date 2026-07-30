@@ -2,9 +2,9 @@
 home: true
 icon: house
 # knowledge-base-home-title
-title: "知识库助手"
+title: "我的知识库"
 heroText: "把每次对话，沉淀成真正属于你的知识库"
-tagline: 一键同步 ChatGPT 问答，智能筛选、自动分类，并以 Markdown 永久保存在本地 VuePress 项目中。
+tagline: 使用 RecallPress 同步 ChatGPT 问答、自动整理题目，并以 Markdown 永久保存在本地 VuePress 项目中。
 actions:
   - text: 进入知识库
     icon: arrow-right

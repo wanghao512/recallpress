@@ -1,12 +1,36 @@
-# ChatGPT · VuePress 知识库助手
+# RecallPress
 
-把 ChatGPT 页面中真正值得保留的问答，整理成一题一页、可搜索、可继续编辑的本地 VuePress 知识库。
+**把 AI 对话沉淀为可复习的知识库。**
+
+RecallPress 会把 ChatGPT 页面中真正值得保留的问答，整理成一题一页、可搜索、可继续编辑的本地 VuePress 知识库；也可以根据预设规则和问题清单，自动完成逐题问答与入库。
 
 它由三部分组成：
 
 - Chrome 扩展：读取当前页面已经显示的问答，并提供同步、分类与多知识库切换界面。
 - 本地同步服务：仅监听 `127.0.0.1:3847`，负责筛选、分类、去重和写入 Markdown。
 - VuePress 模板：使用 VuePress Theme Hope 展示生成的知识卡片。
+
+## 真实界面
+
+### 批量题目自动问答与入库
+
+预设回答规则和问题清单后，RecallPress 会逐题发送、等待完整回答、核验并同步；当前题成功入库后才继续下一题。任务进度和当前归档会直接显示在浮动入口中。
+
+<p align="center">
+  <img src="./docs/images/recallpress-batch-sync.png" alt="RecallPress 批量题目自动问答和同步进度" width="656">
+</p>
+
+### 书籍化知识页面
+
+每轮问答生成一个独立页面，保留公式、表格、代码块和回答层级，并自动进入左侧分类目录与右侧页面大纲。
+
+<p align="center">
+  <img src="./docs/images/recallpress-knowledge-page.png" alt="RecallPress 生成的书籍化 VuePress 知识页面" width="1100">
+</p>
+
+> 截图中的“知识库助手”是用户自定义的知识库名称。产品名称是 RecallPress，知识库名称可以在扩展中随时修改。
+
+### 页面内浮动入口
 
 <p align="center">
   <img src="./docs/images/floating-button.png" alt="吸附在 ChatGPT 页面右侧的知识库同步按钮" width="620">
@@ -76,8 +100,8 @@ flowchart LR
 - Chrome、Edge 或其他支持 Manifest V3 扩展的 Chromium 浏览器
 
 ```bash
-git clone https://github.com/wanghao512/chatgpt-vuepress-knowledge-base.git
-cd chatgpt-vuepress-knowledge-base
+git clone https://github.com/wanghao512/recallpress.git
+cd recallpress
 pnpm install
 ```
 
