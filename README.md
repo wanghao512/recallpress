@@ -20,6 +20,14 @@ RecallPress 会把 ChatGPT 页面中真正值得保留的问答，整理成一�
   <img src="./docs/images/recallpress-batch-sync.png" alt="RecallPress 批量题目自动问答和同步进度" width="656">
 </p>
 
+### 本地模型与多知识库设置
+
+在独立设置页中管理多个知识库档案，以及每个档案使用的 VuePress 目录、OpenAI 兼容接口、模型和 API Key。页面支持连通性测试，并在本机统计请求次数和 Token 用量；配置不会写入生成的知识文章。
+
+<p align="center">
+  <img src="./docs/images/recallpress-model-settings.png" alt="RecallPress 本地模型、多知识库档案与 Token 用量设置页" width="1100">
+</p>
+
 ### 书籍化知识页面
 
 每轮问答生成一个独立页面，保留公式、表格、代码块和回答层级，并自动进入左侧分类目录与右侧页面大纲。
