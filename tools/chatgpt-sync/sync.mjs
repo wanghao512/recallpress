@@ -808,14 +808,80 @@ export async function saveConversation(projectRoot, input, options = {}) {
   );
   const requestedResolutions =
     input?.duplicateResolutions && typeof input.duplicateResolutions === "object" ? input.duplicateResolutions : {};
-  const pageByQuestion = new Map();
-  for (const page of allPages) {
-    const key = questionKey(page.turn.title);
-    if (key && !pageByQuestion.has(key)) pageByQuestion.set(key, page);
-  }
   const duplicateMatches = new Map();
   const conflicts = [];
+  const turnPlans = new Map();
   let decisionCacheChanged = false;
+
+  async function planTurn(turn) {
+    const cachedPlan = turnPlans.get(turn.turnId);
+    if (cachedPlan) return cachedPlan;
+
+    const decisionKey = hash(`${conversation.conversationId}:${turn.turnId}`, 24);
+    const cachedDecision = decisionCache.decisions[decisionKey];
+    if (cachedDecision?.shouldStore === false) {
+      const plan = {
+        classification: {
+          shouldStore: false,
+          skipReason: cleanText(cachedDecision.skipReason, 120) || "非复习内容",
+        },
+        targetCollection: null,
+      };
+      turnPlans.set(turn.turnId, plan);
+      return plan;
+    }
+
+    let modelResult = null;
+    if (classifier?.enabled && typeof classifier.classify === "function") {
+      try {
+        modelResult = await classifier.classify({
+          answerExcerpt: turn.answer.slice(0, 1_200),
+          existingCollections: collections.map(({ category, collectionTitle, samples, tags }) => ({
+            category,
+            collectionTitle,
+            samples,
+            tags,
+          })),
+          question: turn.question,
+        });
+      } catch (error) {
+        classificationWarnings.push(error instanceof Error ? error.message : "分类接口调用失败，已使用本地规则");
+      }
+    }
+
+    let classification = resolveQuestionClassification(
+      turn.question,
+      modelResult,
+      collections,
+      turn.answer.slice(0, 1_200),
+    );
+    if (!classification.shouldStore) {
+      decisionCache.decisions[decisionKey] = {
+        shouldStore: false,
+        skipReason: classification.skipReason,
+        updatedAt: new Date().toISOString(),
+      };
+      decisionCacheChanged = true;
+    }
+
+    let targetCollection = null;
+    if (classification.shouldStore && fixedCollection) {
+      classification = {
+        ...classification,
+        category: fixedCollection.category,
+        collectionTitle: fixedCollection.collectionTitle,
+        tags: [...new Set([...fixedCollection.tags, ...classification.tags])].slice(0, 8),
+        usedExisting: true,
+      };
+      targetCollection = fixedCollection;
+    } else if (classification.shouldStore) {
+      targetCollection = findMatchingCollection(collections, classification.collectionTitle);
+    }
+
+    const plan = { classification, targetCollection };
+    turnPlans.set(turn.turnId, plan);
+    return plan;
+  }
 
   for (const turn of conversation.turns) {
     if (!shouldStoreQuestion(turn.question)) continue;
@@ -824,7 +890,10 @@ export async function saveConversation(projectRoot, input, options = {}) {
       (turn.answer.length >= 40 ? existingByAnswer.get(turn.answerId) || existingByAnswerMatch.get(turn.answerMatchId) : null);
     if (matchedTurn) continue;
 
-    let duplicate = pageByQuestion.get(questionKey(turn.title));
+    const plan = await planTurn(turn);
+    if (!plan.classification.shouldStore) continue;
+    const archivePages = plan.targetCollection?.pages || [];
+    let duplicate = archivePages.find((page) => questionKey(page.turn.title) === questionKey(turn.title));
     let matchType = duplicate ? "exact" : "";
     let matchReason = "";
     if (
@@ -832,12 +901,10 @@ export async function saveConversation(projectRoot, input, options = {}) {
       shouldStoreQuestion(turn.question) &&
       classifier?.enabled &&
       typeof classifier.findDuplicate === "function" &&
-      allPages.length
+      archivePages.length
     ) {
-      const inferredCategory = inferTopic(`${turn.question}\n${turn.answer.slice(0, 600)}`).category;
-      const candidates = allPages
+      const candidates = archivePages
         .filter((page) => questionKey(page.turn.title) !== questionKey(turn.title))
-        .sort((left, right) => Number(right.category === inferredCategory) - Number(left.category === inferredCategory))
         .slice(0, 60)
         .map((page, index) => ({
           id: `q${index + 1}-${page.turnId || hash(page.filePath, 12)}`,
@@ -954,53 +1021,15 @@ export async function saveConversation(projectRoot, input, options = {}) {
         usedExisting: true,
       };
     } else {
-      const decisionKey = hash(`${conversation.conversationId}:${turn.turnId}`, 24);
-      const cachedDecision = decisionCache.decisions[decisionKey];
-      if (cachedDecision?.shouldStore === false) {
-        skippedCount += 1;
-        skippedReasons.push(cleanText(cachedDecision.skipReason, 120) || "非复习内容");
-        continue;
-      }
-
-      let modelResult = null;
-      if (classifier?.enabled && typeof classifier.classify === "function") {
-        try {
-          modelResult = await classifier.classify({
-            answerExcerpt: turn.answer.slice(0, 1_200),
-            existingCollections: collections.map(({ category, collectionTitle, samples, tags }) => ({
-              category,
-              collectionTitle,
-              samples,
-              tags,
-            })),
-            question: turn.question,
-          });
-        } catch (error) {
-          classificationWarnings.push(error instanceof Error ? error.message : "分类接口调用失败，已使用本地规则");
-        }
-      }
-      classification = resolveQuestionClassification(turn.question, modelResult, collections, turn.answer.slice(0, 1_200));
+      const plan = await planTurn(turn);
+      classification = plan.classification;
       if (!classification.shouldStore) {
         skippedCount += 1;
         skippedReasons.push(classification.skipReason);
-        decisionCache.decisions[decisionKey] = {
-          shouldStore: false,
-          skipReason: classification.skipReason,
-          updatedAt: new Date().toISOString(),
-        };
-        decisionCacheChanged = true;
         continue;
       }
-      if (fixedCollection) {
-        classification = {
-          ...classification,
-          category: fixedCollection.category,
-          collectionTitle: fixedCollection.collectionTitle,
-          tags: [...new Set([...fixedCollection.tags, ...classification.tags])].slice(0, 8),
-          usedExisting: true,
-        };
-        targetCollection = fixedCollection;
-      } else {
+      targetCollection = plan.targetCollection;
+      if (!targetCollection) {
         const resolvedCollection = await collectionForClassification(rootDir, collections, classification);
         targetCollection = resolvedCollection.collection;
         if (resolvedCollection.created) createdCollectionCount += 1;

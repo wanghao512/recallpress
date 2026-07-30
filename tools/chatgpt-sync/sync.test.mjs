@@ -557,6 +557,109 @@ test("格式提示词不能通过答案匹配覆盖已有技术题", async () =>
   }
 });
 
+test("相同题目位于其他归档时仍创建当前归档页面", async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), "chatgpt-sync-archive-exact-scope-test-"));
+  const firstPayload = {
+    ...sample,
+    conversationId: "archive-exact-rag",
+    messages: [
+      { role: "user", messageId: "archive-exact-question-a", content: "什么是 RAG？" },
+      { role: "assistant", messageId: "archive-exact-answer-a", content: "RAG 会先检索外部知识，再结合上下文生成答案。" },
+    ],
+  };
+
+  try {
+    await saveConversation(projectRoot, firstPayload);
+    const createdCollection = await createCollection(projectRoot, { collectionTitle: "PPO 高频面试题" });
+    const second = await saveConversation(projectRoot, {
+      ...firstPayload,
+      classificationMode: "fixed",
+      conversationId: "archive-exact-ppo",
+      fixedCollectionId: createdCollection.collection.collectionId,
+      fixedCollectionTitle: createdCollection.collection.collectionTitle,
+      messages: [
+        { role: "user", messageId: "archive-exact-question-b", content: "什么是 RAG？" },
+        { role: "assistant", messageId: "archive-exact-answer-b", content: "这里保留一份属于当前 PPO 归档的独立复习答案。" },
+      ],
+    });
+    const collections = await listCollections(projectRoot);
+
+    assert.equal(second.requiresResolution, false);
+    assert.equal(second.createdCount, 1);
+    assert.equal(path.basename(path.dirname(second.filePath)), createdCollection.collection.collectionId);
+    assert.equal(collections.find((collection) => collection.collectionId === "rag-面试题")?.questionCount, 1);
+    assert.equal(
+      collections.find((collection) => collection.collectionId === createdCollection.collection.collectionId)?.questionCount,
+      1,
+    );
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("语义重复检测只向模型提供目标归档候选", async () => {
+  const projectRoot = await mkdtemp(path.join(os.tmpdir(), "chatgpt-sync-archive-semantic-scope-test-"));
+  let semanticCandidates = [];
+
+  try {
+    await saveConversation(projectRoot, {
+      ...sample,
+      conversationId: "archive-semantic-rag",
+      messages: [
+        { role: "user", messageId: "archive-semantic-question-a", content: "向量检索为什么适合 RAG？" },
+        { role: "assistant", messageId: "archive-semantic-answer-a", content: "向量检索可以按照语义相似度召回相关知识。" },
+      ],
+    });
+    const createdCollection = await createCollection(projectRoot, { collectionTitle: "PPO 高频面试题" });
+    const fixedBase = {
+      ...sample,
+      classificationMode: "fixed",
+      fixedCollectionId: createdCollection.collection.collectionId,
+      fixedCollectionTitle: createdCollection.collection.collectionTitle,
+    };
+    await saveConversation(projectRoot, {
+      ...fixedBase,
+      conversationId: "archive-semantic-ppo-existing",
+      messages: [
+        { role: "user", messageId: "archive-semantic-question-b", content: "PPO 为什么需要裁剪？" },
+        { role: "assistant", messageId: "archive-semantic-answer-b", content: "裁剪可以限制单次策略更新幅度。" },
+      ],
+    });
+    const classifier = {
+      enabled: true,
+      async classify() {
+        return {
+          action: "create_new",
+          category: "AI 与大模型",
+          collectionTitle: "临时分类",
+          shouldStore: true,
+          tags: ["AI"],
+        };
+      },
+      async findDuplicate({ existingQuestions }) {
+        semanticCandidates = existingQuestions.map(({ question }) => question);
+        return null;
+      },
+    };
+    await saveConversation(
+      projectRoot,
+      {
+        ...fixedBase,
+        conversationId: "archive-semantic-new",
+        messages: [
+          { role: "user", messageId: "archive-semantic-question-c", content: "检索增强生成为什么使用向量召回？" },
+          { role: "assistant", messageId: "archive-semantic-answer-c", content: "向量召回可以匹配语义相近但措辞不同的知识。" },
+        ],
+      },
+      { classifier },
+    );
+
+    assert.deepEqual(semanticCandidates, ["PPO 为什么需要裁剪？"]);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
 test("同题答案不同时先暂停写入，并按用户选择保留或替换", async () => {
   const projectRoot = await mkdtemp(path.join(os.tmpdir(), "chatgpt-sync-duplicate-answer-test-"));
   const firstPayload = {
@@ -655,7 +758,13 @@ test("语义相同但措辞不同的问题复用现有冲突选择流程", async
   const classifier = {
     enabled: true,
     async classify() {
-      throw new Error("语义重复题不应再次调用分类接口");
+      return {
+        action: "use_existing",
+        category: "AI 与大模型",
+        collectionTitle: "RAG 面试题",
+        shouldStore: true,
+        tags: ["RAG"],
+      };
     },
     async findDuplicate({ existingQuestions }) {
       return { duplicateId: existingQuestions[0].id, reason: "两者都在询问 RAG 为什么需要先检索" };

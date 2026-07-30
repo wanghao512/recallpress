@@ -18,10 +18,23 @@ async function request(path, options = {}) {
   return body;
 }
 
+async function openExtensionOptions() {
+  if (typeof chrome.runtime.openOptionsPage === "function") {
+    await chrome.runtime.openOptionsPage();
+    return;
+  }
+
+  if (typeof chrome.tabs?.create === "function") {
+    await chrome.tabs.create({ url: chrome.runtime.getURL("options/options.html") });
+    return;
+  }
+
+  throw new Error("当前浏览器无法打开扩展设置页");
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "chatgpt-sync:open-options") {
-    chrome.runtime
-      .openOptionsPage()
+    openExtensionOptions()
       .then(() => sendResponse({ ok: true }))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
@@ -115,6 +128,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (message?.type === "chatgpt-sync:reset-api-usage") {
     request("/api/config/usage/reset", { method: "POST" })
+      .then((body) => sendResponse({ ok: true, ...body }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
+  if (message?.type === "chatgpt-sync:organize-questions") {
+    request("/api/questions/organize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: message.text }),
+    })
       .then((body) => sendResponse({ ok: true, ...body }))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;

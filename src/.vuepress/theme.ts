@@ -5,6 +5,11 @@ import sidebar from "./sidebar.js";
 
 export default hopeTheme({
   navbar,
+  navbarLayout: {
+    start: ["Brand"],
+    center: [],
+    end: ["Links", "Outlook", "Search"],
+  },
   sidebar,
   displayFooter: false,
 

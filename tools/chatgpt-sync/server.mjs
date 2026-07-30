@@ -11,7 +11,7 @@ import {
   resolveApiSettings,
   saveApiSettings,
 } from "./api-settings.mjs";
-import { createQuestionClassifier, loadLocalEnv } from "./classifier.mjs";
+import { createQuestionClassifier, fallbackQuestionList, loadLocalEnv } from "./classifier.mjs";
 import {
   activateProfile,
   activeProfile,
@@ -110,8 +110,12 @@ const server = createServer(async (request, response) => {
     return;
   }
 
-  if (/^\/api\/(?:config|profiles)/u.test(request.url || "") && origin && !origin.startsWith("chrome-extension://")) {
-    sendJson(response, 403, { ok: false, error: "本地档案和 API 配置只能由扩展访问" }, origin);
+  if (
+    /^\/api\/(?:config|profiles|questions\/organize)/u.test(request.url || "") &&
+    origin &&
+    !origin.startsWith("chrome-extension://")
+  ) {
+    sendJson(response, 403, { ok: false, error: "本地档案和模型功能只能由扩展访问" }, origin);
     return;
   }
 
@@ -150,6 +154,37 @@ const server = createServer(async (request, response) => {
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : "读取 API 配置失败";
+      sendJson(response, 400, { ok: false, error: message }, origin);
+    }
+    return;
+  }
+
+  if (request.method === "POST" && request.url === "/api/questions/organize") {
+    try {
+      const payload = await readJson(request);
+      const fallbackQuestions = fallbackQuestionList(payload?.text);
+      if (!fallbackQuestions.length) throw new Error("请先填写需要整理的问题素材");
+
+      if (!classifier.enabled) {
+        sendJson(
+          response,
+          200,
+          {
+            mode: "fallback",
+            model: "",
+            ok: true,
+            questions: fallbackQuestions,
+            reason: classifier.reason,
+          },
+          origin,
+        );
+        return;
+      }
+
+      const questions = await classifier.organizeQuestions(payload.text);
+      sendJson(response, 200, { mode: "llm", model: classifier.model, ok: true, questions }, origin);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "问题清单整理失败";
       sendJson(response, 400, { ok: false, error: message }, origin);
     }
     return;
