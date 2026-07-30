@@ -1,6 +1,6 @@
 ---
 # knowledge-base-title
-title: "知识库助手"
+title: "我的知识库"
 icon: graduation-cap
 article: false
 index: false
@@ -9,7 +9,7 @@ editLink: false
 ---
 
 <!-- knowledge-base-heading -->
-# 知识库助手
+# 我的知识库
 
 这里用于沉淀你在 ChatGPT 中产生的学习问答。同步后的笔记会先匹配已有分类，确实不合适时才自动创建新分类。
 

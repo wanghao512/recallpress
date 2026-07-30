@@ -1,5 +1,5 @@
 {
-  "name": "chatgpt-vuepress-knowledge-base",
+  "name": "recallpress",
   "description": "Turn ChatGPT conversations into a structured, searchable VuePress knowledge base.",
   "version": "2.0.0",
   "private": true,
@@ -18,11 +18,11 @@
   "packageManager": "pnpm@10.26.2",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wanghao512/chatgpt-vuepress-knowledge-base.git"
+    "url": "git+https://github.com/wanghao512/recallpress.git"
   },
-  "homepage": "https://github.com/wanghao512/chatgpt-vuepress-knowledge-base#readme",
+  "homepage": "https://github.com/wanghao512/recallpress#readme",
   "bugs": {
-    "url": "https://github.com/wanghao512/chatgpt-vuepress-knowledge-base/issues"
+    "url": "https://github.com/wanghao512/recallpress/issues"
   },
   "scripts": {
     "chatgpt-sync": "node tools/chatgpt-sync/server.mjs",

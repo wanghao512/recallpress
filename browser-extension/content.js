@@ -1532,7 +1532,7 @@
       syncing: "正在同步到知识库",
     };
     syncButton.title = dock.classList.contains("is-idle")
-      ? collapsedLabels[state.dockStatus] || "展开知识库助手"
+      ? collapsedLabels[state.dockStatus] || "展开 RecallPress"
       : syncButton.dataset.actionTitle || "同步到知识库";
     syncButton.setAttribute("aria-label", syncButton.title);
   }
