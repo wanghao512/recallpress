@@ -1,11 +1,24 @@
 (() => {
   if (window.__jobPrepVuePressSyncLoaded) return;
   window.__jobPrepVuePressSyncLoaded = true;
+  const { buildBatchQueue } = globalThis.ChatGPTBatchAutomation;
 
   const state = {
     autoSync: false,
     activeProfileId: "",
     baseline: null,
+    batch: {
+      active: false,
+      awaitingKind: "",
+      baseline: "",
+      cursor: 0,
+      preparing: false,
+      processing: false,
+      queue: [],
+      sawGeneration: false,
+      sendTimer: null,
+      sentAt: 0,
+    },
     cacheConversationId: "",
     cacheSequence: 0,
     classificationMode: "llm",
@@ -45,7 +58,13 @@
 
   function tableToMarkdown(table) {
     const rows = [...table.querySelectorAll("tr")].map((row) =>
-      [...row.querySelectorAll("th, td")].map((cell) => cell.innerText.trim().replaceAll("|", "\\|")),
+      [...row.querySelectorAll("th, td")].map((cell) =>
+        nodeToMarkdown(cleanClone(cell))
+          .replace(/\n*\$\$\n*([\s\S]*?)\n*\$\$\n*/g, (_match, expression) => `$${expression.trim()}$`)
+          .replace(/\s*\n+\s*/g, "<br>")
+          .trim()
+          .replaceAll("|", "\\|"),
+      ),
     );
     if (!rows.length) return "";
 
@@ -517,38 +536,44 @@
         position: absolute;
         right: 0;
         bottom: 66px;
-        width: 312px;
-        padding: 20px;
+        width: 348px;
+        max-height: min(760px, calc(100vh - 88px));
+        padding: 12px;
+        overflow-y: auto;
         border: 1px solid var(--line);
-        border-radius: 22px;
+        border-radius: 24px;
         background: var(--paper);
         box-shadow: 0 28px 70px rgba(0, 0, 0, .16), 0 1px 0 rgba(255, 255, 255, .9) inset;
         backdrop-filter: blur(32px) saturate(1.45);
         -webkit-backdrop-filter: blur(32px) saturate(1.45);
+        scrollbar-color: rgba(120, 120, 128, .34) transparent;
+        scrollbar-gutter: stable;
+        scrollbar-width: thin;
         animation: rise .24s cubic-bezier(.22, 1, .36, 1);
       }
-      .panel::after {
-        position: absolute;
-        right: 17px;
-        bottom: -6px;
-        width: 12px;
-        height: 12px;
-        border-right: 1px solid var(--line);
-        border-bottom: 1px solid var(--line);
-        background: var(--paper-solid);
-        content: "";
-        transform: rotate(45deg);
-      }
+      .panel::-webkit-scrollbar { width: 5px; }
+      .panel::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(120, 120, 128, .28); }
       .panel[hidden] { display: none; }
-      .panel-head { display: flex; align-items: center; justify-content: space-between; }
+      .panel-head { display: flex; align-items: center; justify-content: space-between; padding: 3px 4px 11px; }
       .eyebrow { color: var(--muted); font: 600 9px/1 "SF Pro Text", -apple-system, sans-serif; letter-spacing: .11em; }
       .local-badge { padding: 4px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-deep); font: 650 8px/1 "SF Pro Text", -apple-system, sans-serif; letter-spacing: .04em; }
+      .workspace-card,
+      .preferences-card,
+      .automation-card {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--surface);
+        box-shadow: 0 1px 0 rgba(255, 255, 255, .62) inset;
+      }
+      .workspace-card { padding: 11px; }
+      .preferences-card { margin-top: 10px; }
       .profile-switcher {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
         gap: 7px;
         align-items: end;
-        margin-top: 17px;
+        margin: 0;
       }
       .profile-switcher label { display: grid; gap: 6px; color: var(--muted); font-size: 10px; font-weight: 500; }
       .profile-select {
@@ -575,14 +600,24 @@
         font-weight: 650;
       }
       .manage-profiles:hover { color: var(--accent-deep); }
-      .name-editor { display: grid; gap: 6px; margin: 17px 0 13px; color: var(--muted); font-size: 10px; font-weight: 500; cursor: text; }
+      .name-editor {
+        display: grid;
+        gap: 6px;
+        margin: 11px 0 0;
+        padding-top: 11px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 500;
+        cursor: text;
+      }
       .name-input-row {
         display: flex;
         align-items: center;
-        padding: 9px 11px;
-        border: 1px solid var(--line);
-        border-radius: 13px;
-        background: var(--surface);
+        padding: 7px 9px;
+        border: 1px solid transparent;
+        border-radius: 11px;
+        background: rgba(120, 120, 128, .07);
         box-shadow: 0 1px 0 rgba(255, 255, 255, .72) inset;
         transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
       }
@@ -595,7 +630,7 @@
         outline: 0;
         background: transparent;
         color: var(--ink);
-        font: 650 16px/1.25 "SF Pro Display", -apple-system, "PingFang SC", sans-serif;
+        font: 650 15px/1.25 "SF Pro Display", -apple-system, "PingFang SC", sans-serif;
         letter-spacing: -.02em;
       }
       .name-input-row svg { flex: 0 0 16px; width: 16px; height: 16px; color: var(--muted); }
@@ -603,11 +638,11 @@
         display: flex;
         gap: 8px;
         align-items: center;
-        margin-bottom: 10px;
-        padding: 10px 11px;
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        background: var(--surface);
+        margin: 10px 0 0;
+        padding: 8px 9px;
+        border: 0;
+        border-radius: 10px;
+        background: rgba(120, 120, 128, .07);
         color: var(--muted);
         font-size: 11px;
       }
@@ -701,11 +736,11 @@
       .routing {
         display: grid;
         gap: 9px;
-        margin-bottom: 10px;
+        margin: 0;
         padding: 11px;
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        background: var(--surface);
+        border: 0;
+        border-radius: 0;
+        background: transparent;
       }
       .setting-caption { color: var(--muted); font-size: 10px; font-weight: 600; }
       .mode-control {
@@ -769,11 +804,12 @@
       .scope-setting {
         display: grid;
         gap: 8px;
-        margin-bottom: 10px;
+        margin: 0;
         padding: 11px;
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        background: var(--surface);
+        border: 0;
+        border-top: 1px solid var(--line);
+        border-radius: 0;
+        background: transparent;
       }
       .scope-control {
         display: grid;
@@ -798,6 +834,89 @@
         box-shadow: 0 1px 4px rgba(0, 0, 0, .1), 0 1px 0 rgba(255, 255, 255, .72) inset;
       }
       .scope-note { margin: 0; color: var(--muted); font-size: 9px; line-height: 1.45; }
+      .batch-setting {
+        margin: 10px 0 0;
+        padding: 0;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--surface);
+      }
+      .batch-setting summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 50px;
+        padding: 0 12px;
+        color: var(--ink);
+        cursor: pointer;
+        list-style: none;
+      }
+      .batch-summary-copy { display: grid; gap: 3px; }
+      .batch-summary-copy strong { font-size: 11px; font-weight: 650; line-height: 1.1; }
+      .batch-summary-copy small { color: var(--muted); font-size: 8px; font-weight: 500; line-height: 1; }
+      .batch-setting summary::-webkit-details-marker { display: none; }
+      .batch-setting summary::after {
+        width: 7px;
+        height: 7px;
+        margin-right: 2px;
+        border-right: 1.5px solid var(--muted);
+        border-bottom: 1.5px solid var(--muted);
+        content: "";
+        transform: rotate(45deg) translateY(-2px);
+        transition: transform .18s ease;
+      }
+      .batch-setting[open] summary::after { transform: rotate(225deg) translate(-2px, -1px); }
+      .batch-body {
+        display: grid;
+        gap: 10px;
+        padding: 11px;
+        border-top: 1px solid var(--line);
+        background: color-mix(in srgb, var(--paper-solid) 64%, transparent);
+      }
+      .batch-field { display: grid; gap: 5px; color: var(--muted); font-size: 9px; font-weight: 600; }
+      .batch-field textarea {
+        width: 100%;
+        min-height: 66px;
+        resize: vertical;
+        padding: 9px 10px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        outline: 0;
+        background: var(--paper-solid);
+        color: var(--ink);
+        font: 10px/1.5 "SF Pro Text", -apple-system, "PingFang SC", sans-serif;
+      }
+      .batch-field .batch-system-prompt { min-height: 58px; }
+      .batch-field .batch-questions { min-height: 128px; max-height: 280px; }
+      .batch-field textarea:focus { border-color: rgba(10, 132, 255, .5); box-shadow: 0 0 0 3px rgba(10, 132, 255, .12); }
+      .batch-field textarea:disabled { cursor: not-allowed; opacity: .62; }
+      .batch-actions { display: grid; grid-template-columns: 1.55fr .8fr; gap: 7px; }
+      .batch-actions button {
+        min-height: 36px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--paper-solid);
+        color: var(--ink);
+        font: 650 10px/1 "SF Pro Text", -apple-system, "PingFang SC", sans-serif;
+      }
+      .batch-actions .batch-start { border-color: var(--accent-deep); background: var(--accent-deep); color: #fff; }
+      .batch-actions .batch-start:not(:disabled):hover { filter: brightness(1.08); transform: translateY(-1px); }
+      .batch-actions button:disabled { cursor: not-allowed; opacity: .45; }
+      .batch-progress { margin: 0; color: var(--muted); font-size: 9px; line-height: 1.45; }
+      .automation-card { margin-top: 10px; }
+      .automation-card .auto-row {
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+      }
+      .automation-card .verify-row {
+        margin: 0;
+        border: 0;
+        border-top: 1px solid var(--line);
+        border-radius: 0;
+        background: transparent;
+      }
       .collection-dialog {
         position: absolute;
         right: 0;
@@ -842,7 +961,7 @@
       }
       .collection-dialog-actions .save-collection { border-color: var(--accent-deep); background: var(--accent-deep); color: #fff; }
       .collection-dialog-actions .save-collection:disabled { cursor: wait; opacity: .6; }
-      .hint { margin: 14px 2px 0; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; line-height: 1.6; }
+      .hint { margin: 10px 5px 2px; color: var(--muted); font-size: 9px; line-height: 1.55; }
       .duplicate-dialog {
         position: absolute;
         right: 0;
@@ -951,6 +1070,7 @@
         .bar { width: 124px; min-width: 124px; }
         .sync { padding-right: 9px; }
         .sync-copy { display: none; }
+        .panel { width: min(348px, calc(100vw - 20px)); }
         .duplicate-dialog { right: 0; width: min(510px, calc(100vw - 20px)); max-height: 70vh; overflow: auto; }
         .duplicate-answer-grid { grid-template-columns: 1fr; }
         .duplicate-actions { flex-wrap: wrap; }
@@ -992,45 +1112,69 @@
       </section>
       <section class="panel" aria-label="同步设置" hidden>
         <div class="panel-head"><div class="eyebrow">KNOWLEDGE BASE</div><span class="local-badge">ON DEVICE</span></div>
-        <div class="profile-switcher">
-          <label><span>当前知识库档案</span><select class="profile-select" aria-label="切换知识库档案"><option>正在读取档案…</option></select></label>
-          <button class="manage-profiles" type="button">管理</button>
-        </div>
-        <label class="name-editor">
-          <span>知识库名称</span>
-          <span class="name-input-row"><input class="library-name" type="text" maxlength="24" value="我的知识库" aria-label="知识库名称"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m14.7 5.3 4 4M5 19l3.6-.7L18 8.9a1.4 1.4 0 0 0 0-2L17.1 6a1.4 1.4 0 0 0-2 0l-9.4 9.4L5 19Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-        </label>
-        <div class="service"><i class="dot"></i><span>正在检查本地服务…</span><button class="service-settings" type="button">API 设置</button></div>
-        <div class="routing">
-          <span class="setting-caption">后续问题归档</span>
-          <div class="mode-control" role="group" aria-label="问题分类方式">
-            <button class="mode-button" type="button" data-mode="llm" aria-pressed="true">智能判断</button>
-            <button class="mode-button" type="button" data-mode="fixed" aria-pressed="false">固定分类</button>
+        <div class="workspace-card">
+          <div class="profile-switcher">
+            <label><span>当前知识库档案</span><select class="profile-select" aria-label="切换知识库档案"><option>正在读取档案…</option></select></label>
+            <button class="manage-profiles" type="button">管理</button>
           </div>
-          <label class="collection-picker" hidden>
-            <select class="collection-select" aria-label="默认归属分类"><option value="">正在读取分类…</option></select>
+          <label class="name-editor">
+            <span>知识库名称</span>
+            <span class="name-input-row"><input class="library-name" type="text" maxlength="24" value="我的知识库" aria-label="知识库名称"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m14.7 5.3 4 4M5 19l3.6-.7L18 8.9a1.4 1.4 0 0 0 0-2L17.1 6a1.4 1.4 0 0 0-2 0l-9.4 9.4L5 19Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
           </label>
-          <div class="collection-tools">
-            <button class="collection-tool create-collection" type="button">＋ 新建分类</button>
-            <button class="collection-tool rename-collection" type="button">重命名</button>
-          </div>
-          <p class="routing-note">LLM 会查看现有分类并自主选择，必要时创建新分类。</p>
+          <div class="service"><i class="dot"></i><span>正在检查本地服务…</span><button class="service-settings" type="button">API 设置</button></div>
         </div>
-        <div class="scope-setting">
-          <span class="setting-caption">同步范围</span>
-          <div class="scope-control" role="group" aria-label="同步范围">
-            <button class="scope-button" type="button" data-scope="last" aria-pressed="true">只同步最后一题</button>
-            <button class="scope-button" type="button" data-scope="conversation" aria-pressed="false">全部新题</button>
+        <div class="preferences-card">
+          <div class="routing">
+            <span class="setting-caption">后续问题归档</span>
+            <div class="mode-control" role="group" aria-label="问题分类方式">
+              <button class="mode-button" type="button" data-mode="llm" aria-pressed="true">智能判断</button>
+              <button class="mode-button" type="button" data-mode="fixed" aria-pressed="false">固定分类</button>
+            </div>
+            <label class="collection-picker" hidden>
+              <select class="collection-select" aria-label="默认归属分类"><option value="">正在读取分类…</option></select>
+            </label>
+            <div class="collection-tools">
+              <button class="collection-tool create-collection" type="button">＋ 新建分类</button>
+              <button class="collection-tool rename-collection" type="button">重命名</button>
+            </div>
+            <p class="routing-note">LLM 会查看现有分类并自主选择，必要时创建新分类。</p>
           </div>
-          <p class="scope-note">仅发送最近一组完整问答，适合较长的对话。</p>
+          <div class="scope-setting">
+            <span class="setting-caption">同步范围</span>
+            <div class="scope-control" role="group" aria-label="同步范围">
+              <button class="scope-button" type="button" data-scope="last" aria-pressed="true">只同步最后一题</button>
+              <button class="scope-button" type="button" data-scope="conversation" aria-pressed="false">全部新题</button>
+            </div>
+            <p class="scope-note">仅发送最近一组完整问答，适合较长的对话。</p>
+          </div>
         </div>
-        <label class="auto-row"><span>回答完成后自动同步</span><input class="auto" type="checkbox"></label>
-        <div class="verify-row">
-          <span class="verify-copy"><strong>最后一题完整性</strong><small>只读核验，不会重复写入</small></span>
-          <button class="verify-last" type="button">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 11a8 8 0 1 1-2.34-5.66M20 4v7h-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span>再次检查</span>
-          </button>
+        <details class="batch-setting">
+          <summary><span class="batch-summary-copy"><strong>批量问答入库</strong><small>模型整理 · 逐题同步</small></span></summary>
+          <div class="batch-body">
+            <label class="batch-field">
+              <span>对话规则（模拟 system prompt）</span>
+              <textarea class="batch-system-prompt" maxlength="8000" placeholder="例如：先给简洁回答，再给详细解析。"></textarea>
+            </label>
+            <label class="batch-field">
+              <span>问题素材（模型自动整理，最多 100 题）</span>
+              <textarea class="batch-questions" maxlength="30000" placeholder="可粘贴编号列表、复习提纲或一整段混合文本。未配置模型时按一行一题读取。"></textarea>
+            </label>
+            <div class="batch-actions">
+              <button class="batch-start" type="button">整理并开始</button>
+              <button class="batch-stop" type="button" disabled>停止</button>
+            </div>
+            <p class="batch-progress">尚未配置问题。任务只会在手动开始后发送。</p>
+          </div>
+        </details>
+        <div class="automation-card">
+          <label class="auto-row"><span>回答完成后自动同步</span><input class="auto" type="checkbox"></label>
+          <div class="verify-row">
+            <span class="verify-copy"><strong>最后一题完整性</strong><small>只读核验，不会重复写入</small></span>
+            <button class="verify-last" type="button">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 11a8 8 0 1 1-2.34-5.66M20 4v7h-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>再次检查</span>
+            </button>
+          </div>
         </div>
         <p class="hint">只读取当前页面中已经显示的问答，不读取账号、Cookie 或密码。手动同步始终可用。</p>
       </section>
@@ -1084,6 +1228,11 @@
   const optionsButton = shadow.querySelector(".options");
   const panel = shadow.querySelector(".panel");
   const autoCheckbox = shadow.querySelector(".auto");
+  const batchSystemPrompt = shadow.querySelector(".batch-system-prompt");
+  const batchQuestions = shadow.querySelector(".batch-questions");
+  const batchStartButton = shadow.querySelector(".batch-start");
+  const batchStopButton = shadow.querySelector(".batch-stop");
+  const batchProgress = shadow.querySelector(".batch-progress");
   const verifyLastButton = shadow.querySelector(".verify-last");
   const verifyLastLabel = shadow.querySelector(".verify-last span");
   const toast = shadow.querySelector(".toast");
@@ -1123,8 +1272,240 @@
   let duplicateSession = null;
   let collectionEditorMode = "create";
 
+  function waitForValue(readValue, timeout = 5_000) {
+    return new Promise((resolve) => {
+      const startedAt = Date.now();
+      const check = () => {
+        const value = readValue();
+        if (value) {
+          resolve(value);
+          return;
+        }
+        if (Date.now() - startedAt >= timeout) {
+          resolve(null);
+          return;
+        }
+        setTimeout(check, 120);
+      };
+      check();
+    });
+  }
+
+  function chatComposer() {
+    return (
+      document.querySelector("#prompt-textarea") ||
+      document.querySelector("textarea[data-id='root']") ||
+      document.querySelector("form textarea") ||
+      document.querySelector("[contenteditable='true'][data-virtualkeyboard]")
+    );
+  }
+
+  function setComposerText(composer, text) {
+    composer.focus();
+    if (composer instanceof HTMLTextAreaElement) {
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+      setter?.call(composer, text);
+      composer.dispatchEvent(new InputEvent("input", { bubbles: true, data: text, inputType: "insertText" }));
+      return;
+    }
+
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(composer);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    const inserted = document.execCommand("insertText", false, text);
+    if (!inserted) {
+      composer.textContent = text;
+      composer.dispatchEvent(new InputEvent("input", { bubbles: true, data: text, inputType: "insertText" }));
+    }
+  }
+
+  function availableSendButton() {
+    const candidates = [
+      document.querySelector("button[data-testid='send-button']"),
+      ...document.querySelectorAll("button[aria-label]"),
+    ].filter(Boolean);
+    return candidates.find((button) => {
+      const label = `${button.getAttribute("aria-label") || ""} ${button.getAttribute("data-testid") || ""}`;
+      return /send|发送/i.test(label) && !/stop|停止|中止/i.test(label) && !button.disabled;
+    });
+  }
+
+  async function submitChatMessage(text) {
+    const composer = await waitForValue(chatComposer);
+    if (!composer) throw new Error("没有找到 ChatGPT 输入框，请刷新页面后重试");
+    setComposerText(composer, text);
+    const sendButton = await waitForValue(availableSendButton);
+    if (!sendButton) throw new Error("没有找到可用的发送按钮，请确认当前对话可以继续");
+    sendButton.click();
+  }
+
+  function batchQuestionTotal() {
+    return state.batch.queue.filter((item) => item.kind === "question").length;
+  }
+
+  function batchQuestionsCompleted() {
+    return state.batch.queue
+      .slice(0, state.batch.cursor)
+      .filter((item) => item.kind === "question").length;
+  }
+
+  function renderBatchProgress(message = "") {
+    const hasQuestionMaterial = Boolean(batchQuestions.value.trim());
+    const total = batchQuestionTotal();
+    const completed = batchQuestionsCompleted();
+    batchSystemPrompt.disabled = state.batch.active || state.batch.preparing;
+    batchQuestions.disabled = state.batch.active || state.batch.preparing;
+    batchStartButton.disabled = state.batch.active || state.batch.preparing || !hasQuestionMaterial;
+    batchStopButton.disabled = !state.batch.active;
+
+    if (message) {
+      batchProgress.textContent = message;
+    } else if (state.batch.active) {
+      const current = state.batch.queue[state.batch.cursor];
+      batchProgress.textContent =
+        current?.kind === "instructions"
+          ? `正在发送对话规则 · 随后处理 ${total} 题`
+          : `正在处理 ${Math.min(completed + 1, total)}/${total} · 回答完成并同步后自动继续`;
+    } else {
+      batchProgress.textContent = hasQuestionMaterial
+        ? "已输入问题素材 · 开始时由模型整理；无模型时按行读取"
+        : "尚未配置问题素材。任务只会在手动开始后发送。";
+    }
+
+    if (state.batch.active) {
+      syncMeta.textContent = `批量 ${completed}/${total}`;
+    } else {
+      applyClassificationMode(state.classificationMode);
+    }
+  }
+
+  function stopBatch(message = "批量任务已停止，不会继续发送问题", error = false) {
+    clearTimeout(state.batch.sendTimer);
+    state.batch.active = false;
+    state.batch.awaitingKind = "";
+    state.batch.preparing = false;
+    state.batch.processing = false;
+    state.batch.sawGeneration = false;
+    renderBatchProgress(message);
+    setDockStatus(error ? "error" : "idle");
+    showToast(message, error);
+  }
+
+  async function sendNextBatchItem() {
+    if (!state.batch.active || state.batch.processing || state.batch.awaitingKind) return;
+    const item = state.batch.queue[state.batch.cursor];
+    if (!item) {
+      state.batch.active = false;
+      renderBatchProgress(`任务完成 · ${batchQuestionTotal()} 题已逐题处理`);
+      setDockStatus("success", 2_000);
+      showToast(`批量任务完成：${batchQuestionTotal()} 题已逐题处理`);
+      return;
+    }
+    if (isGenerating()) {
+      stopBatch("ChatGPT 仍在生成回答，批量任务已暂停", true);
+      return;
+    }
+
+    const extracted = extractConversation();
+    state.batch.awaitingKind = item.kind;
+    state.batch.baseline = extracted.signature;
+    state.batch.sawGeneration = false;
+    state.batch.sentAt = Date.now();
+    renderBatchProgress();
+
+    try {
+      await submitChatMessage(item.text);
+    } catch (error) {
+      stopBatch(error instanceof Error ? error.message : "发送问题失败，批量任务已暂停", true);
+    }
+  }
+
+  async function handleBatchFinishedAnswer(extracted) {
+    if (!state.batch.active || state.batch.processing || !state.batch.awaitingKind) return;
+    state.batch.processing = true;
+    const kind = state.batch.awaitingKind;
+
+    if (kind === "question") {
+      const result = await syncConversation(true, "last");
+      if (!result?.ok) {
+        stopBatch(result?.error || "当前问题同步失败，批量任务已暂停", true);
+        return;
+      }
+    }
+
+    state.batch.cursor += 1;
+    state.batch.awaitingKind = "";
+    state.batch.baseline = extracted.signature;
+    state.batch.processing = false;
+    state.batch.sawGeneration = false;
+    state.sawGeneration = false;
+    renderBatchProgress();
+    state.batch.sendTimer = setTimeout(sendNextBatchItem, 1_200);
+  }
+
+  async function startBatch() {
+    if (state.batch.active || state.batch.preparing) return;
+    if (isGenerating()) {
+      showToast("当前回答还在生成，请完成后再开始批量任务", true);
+      return;
+    }
+
+    const questionMaterial = batchQuestions.value.trim();
+    if (!questionMaterial) {
+      showToast("请先填写需要整理的问题素材", true);
+      return;
+    }
+
+    state.batch.preparing = true;
+    renderBatchProgress("正在检查模型配置并整理问题清单…");
+    const organized = await sendMessage({ type: "chatgpt-sync:organize-questions", text: questionMaterial });
+    state.batch.preparing = false;
+    if (!organized.ok) {
+      renderBatchProgress("问题清单整理失败，任务尚未开始");
+      showToast(organized.error || "问题清单整理失败，请检查 API 设置", true);
+      return;
+    }
+
+    const queue = buildBatchQueue(batchSystemPrompt.value, organized.questions.join("\n"));
+    const questionTotal = queue.filter((item) => item.kind === "question").length;
+    if (!questionTotal) {
+      renderBatchProgress("没有识别出可以发送的问题，任务尚未开始");
+      showToast("没有识别出可以发送的问题", true);
+      return;
+    }
+
+    chrome.storage.local.set({
+      batchQuestionList: batchQuestions.value,
+      batchSystemPrompt: batchSystemPrompt.value,
+    });
+    clearTimeout(state.batch.sendTimer);
+    Object.assign(state.batch, {
+      active: true,
+      awaitingKind: "",
+      baseline: "",
+      cursor: 0,
+      preparing: false,
+      processing: false,
+      queue,
+      sawGeneration: false,
+      sentAt: 0,
+    });
+    state.sawGeneration = false;
+    revealDock();
+    renderBatchProgress();
+    showToast(
+      organized.mode === "llm"
+        ? `模型已整理出 ${questionTotal} 题，批量任务开始`
+        : `未配置可用模型，已按行读取 ${questionTotal} 题`,
+    );
+    sendNextBatchItem();
+  }
+
   function dockCanCollapse() {
     return (
+      !state.batch.active &&
       !state.syncing &&
       !state.pinned &&
       panel.hidden &&
@@ -1497,35 +1878,38 @@
   keepExistingButton.addEventListener("click", () => finishDuplicateChoice("keep_existing"));
   useNewButton.addEventListener("click", () => finishDuplicateChoice("use_new"));
 
-  async function syncConversation(automatic = false) {
-    if (state.syncing) return;
+  async function syncConversation(automatic = false, syncScope = state.syncScope) {
+    if (state.syncing) return { ok: false, error: "已有同步任务正在进行" };
     if (isGenerating()) {
       if (!automatic) showToast("回答还在生成，请完成后再同步", true);
-      return;
+      return { ok: false, error: "回答还在生成" };
     }
     const extracted = extractConversation();
     if (!extracted.payload.messages.length) {
       if (!automatic) showToast("还没有找到可同步的问答", true);
-      return;
+      return { ok: false, error: "还没有找到可同步的问答" };
     }
-    if (state.syncScope === "last" && extracted.payload.messages.at(-1)?.role !== "assistant") {
+    if (syncScope === "last" && extracted.payload.messages.at(-1)?.role !== "assistant") {
       if (!automatic) showToast("最后一道问题还没有完整回答", true);
-      return;
+      return { ok: false, error: "最后一道问题还没有完整回答" };
     }
-    if (extracted.payload.messages.at(-1)?.role !== "assistant" && automatic) return;
+    if (extracted.payload.messages.at(-1)?.role !== "assistant" && automatic) {
+      return { ok: false, error: "最后一道问题还没有完整回答" };
+    }
 
     state.syncing = true;
     state.failedSignature = "";
     setDockStatus("syncing");
     syncButton.disabled = true;
     syncLabel.textContent = automatic ? "自动整理中…" : "正在整理…";
-    let result = await sendMessage({ type: "chatgpt-sync:save", payload: extracted.payload });
+    const payload = { ...extracted.payload, syncScope };
+    let result = await sendMessage({ type: "chatgpt-sync:save", payload });
     if (result.ok && result.requiresResolution && result.conflicts?.length) {
       const duplicateResolutions = await chooseDuplicateAnswers(result.conflicts);
       if (duplicateResolutions) {
         result = await sendMessage({
           type: "chatgpt-sync:save",
-          payload: { ...extracted.payload, duplicateResolutions },
+          payload: { ...payload, duplicateResolutions },
         });
       } else {
         result = { ok: false, cancelled: true };
@@ -1542,7 +1926,7 @@
       const skipped = result.skippedCount ? `，忽略 ${result.skippedCount} 条提示词/非复习内容` : "";
       const fallback = result.classificationWarnings?.length ? "，分类接口异常时已回退本地规则" : "";
       showToast(
-        state.syncScope === "last"
+        syncScope === "last"
           ? `最后一题已核对并同步到“${state.libraryName}”${skipped}${fallback}`
           : `${result.questionCount} 个问题已${result.created ? "整理" : "更新"}到“${state.libraryName}”${skipped}${fallback}`,
         false,
@@ -1556,6 +1940,7 @@
       setDockStatus("error");
       showToast(result.error || "同步失败", true);
     }
+    return result;
   }
 
   async function verifyLastQuestionStorage() {
@@ -1653,6 +2038,17 @@
     chrome.storage.local.set({ autoSync: state.autoSync });
     showToast(state.autoSync ? "已开启自动同步" : "已关闭自动同步");
   });
+  batchStartButton.addEventListener("click", startBatch);
+  batchStopButton.addEventListener("click", () => stopBatch());
+  batchQuestions.addEventListener("input", () => {
+    if (!state.batch.active) renderBatchProgress();
+  });
+  batchQuestions.addEventListener("change", () => {
+    chrome.storage.local.set({ batchQuestionList: batchQuestions.value });
+  });
+  batchSystemPrompt.addEventListener("change", () => {
+    chrome.storage.local.set({ batchSystemPrompt: batchSystemPrompt.value });
+  });
 
   libraryNameInput.addEventListener("input", () => applyLibraryName(libraryNameInput.value, false));
   libraryNameInput.addEventListener("change", async () => {
@@ -1704,20 +2100,34 @@
   chrome.storage.local.get(
     {
       autoSync: false,
+      batchQuestionList: "",
+      batchSystemPrompt: "",
       classificationMode: "llm",
       fixedCollectionId: "",
       fixedCollectionTitle: "",
       libraryName: "我的知识库",
       syncScope: "last",
     },
-    ({ autoSync, classificationMode, fixedCollectionId, fixedCollectionTitle, libraryName, syncScope }) => {
+    ({
+      autoSync,
+      batchQuestionList,
+      batchSystemPrompt: savedBatchSystemPrompt,
+      classificationMode,
+      fixedCollectionId,
+      fixedCollectionTitle,
+      libraryName,
+      syncScope,
+    }) => {
     state.autoSync = Boolean(autoSync);
     autoCheckbox.checked = state.autoSync;
+    batchQuestions.value = String(batchQuestionList || "");
+    batchSystemPrompt.value = String(savedBatchSystemPrompt || "");
     state.fixedCollectionId = String(fixedCollectionId || "").trim().slice(0, 100);
     state.fixedCollectionTitle = String(fixedCollectionTitle || "").trim().slice(0, 80);
     applyClassificationMode(classificationMode);
     applySyncScope(syncScope);
     applyLibraryName(libraryName);
+    renderBatchProgress();
     loadProfiles().then(() => loadCollections());
     scheduleDockCollapse();
   });
@@ -1752,9 +2162,20 @@
       }
       if (generating) {
         state.sawGeneration = true;
+        if (state.batch.active && state.batch.awaitingKind) state.batch.sawGeneration = true;
         return;
       }
       if (!extracted.payload.messages.length) return;
+      if (state.batch.active) {
+        const finishedBatchAnswer =
+          state.batch.awaitingKind &&
+          !state.batch.processing &&
+          extracted.payload.messages.at(-1)?.role === "assistant" &&
+          extracted.signature !== state.batch.baseline &&
+          (state.batch.sawGeneration || Date.now() - state.batch.sentAt >= 1_600);
+        if (finishedBatchAnswer) handleBatchFinishedAnswer(extracted);
+        return;
+      }
       if (state.baseline === null) {
         if (state.autoSync && state.sawGeneration && extracted.payload.messages.at(-1)?.role === "assistant") {
           state.sawGeneration = false;

@@ -57,61 +57,223 @@
   }
 }
 
+.theme-container:has(.interview-question-card),
+.theme-container:has(.vp-project-home) {
+  --vp-c-accent: #9a5c3f;
+  --vp-c-accent-bg: #aa6748;
+  --vp-c-accent-hover: #7e4932;
+  --vp-c-accent-soft: rgba(154, 92, 63, 0.14);
+  --vp-c-bg: #f8f2e6;
+  --vp-c-bg-alt: #f1e8d9;
+  --vp-c-bg-soft: #f6efe3;
+  --vp-c-bg-elv: #fcf8f0;
+  --vp-c-bg-elv-soft: rgba(248, 242, 230, 0.94);
+  --vp-c-border: #d8cdbc;
+  --vp-c-border-hard: #c9baa4;
+  --vp-c-control: #eee4d5;
+  --vp-c-control-hover: #e7dac8;
+  --vp-c-shadow: rgba(68, 45, 27, 0.11);
+  --vp-c-text: #302c27;
+  --vp-c-text-mute: #6f675d;
+  --vp-c-text-subtle: #8b8175;
+  --navbar-c-bg: rgba(248, 242, 230, 0.94);
+  --sidebar-c-bg: #f8f2e6;
+
+  background: var(--vp-c-bg);
+
+  .vp-navbar {
+    border-bottom-color: rgba(121, 90, 61, 0.15);
+    box-shadow: 0 1px 10px rgba(68, 45, 27, 0.06);
+  }
+
+  .vp-sidebar {
+    border-inline-end: 1px solid rgba(121, 90, 61, 0.13);
+    box-shadow: 5px 0 22px rgba(68, 45, 27, 0.045);
+  }
+
+  [vp-toc] {
+    --vp-c-accent: #92563b;
+    border-color: rgba(121, 90, 61, 0.16);
+  }
+
+  * {
+    scrollbar-color: rgba(154, 92, 63, 0.62) transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background: rgba(154, 92, 63, 0.58);
+    background-clip: content-box;
+  }
+
+  ::selection {
+    background: rgba(169, 95, 63, 0.22);
+  }
+}
+
+[data-theme="dark"] .theme-container:has(.interview-question-card),
+[data-theme="dark"] .theme-container:has(.vp-project-home) {
+  --vp-c-accent: #d39471;
+  --vp-c-accent-bg: #b97251;
+  --vp-c-accent-hover: #e2a887;
+  --vp-c-accent-soft: rgba(211, 148, 113, 0.17);
+  --vp-c-bg: #25231f;
+  --vp-c-bg-alt: #2e2a24;
+  --vp-c-bg-soft: #211f1c;
+  --vp-c-bg-elv: #302c26;
+  --vp-c-bg-elv-soft: rgba(33, 31, 28, 0.95);
+  --vp-c-border: #51483d;
+  --vp-c-border-hard: #685b4c;
+  --vp-c-control: #353029;
+  --vp-c-control-hover: #40382f;
+  --vp-c-shadow: rgba(0, 0, 0, 0.24);
+  --vp-c-text: #eee8de;
+  --vp-c-text-mute: #b9afa1;
+  --vp-c-text-subtle: #93887a;
+  --navbar-c-bg: rgba(33, 31, 28, 0.95);
+  --sidebar-c-bg: #211f1c;
+
+  .vp-navbar {
+    border-bottom-color: rgba(218, 178, 140, 0.1);
+    box-shadow: 0 1px 12px rgba(0, 0, 0, 0.18);
+  }
+
+  .vp-sidebar {
+    border-inline-end-color: rgba(218, 178, 140, 0.09);
+    box-shadow: 5px 0 22px rgba(0, 0, 0, 0.14);
+  }
+
+  [vp-toc] {
+    --vp-c-accent: #d39471;
+    border-color: rgba(218, 178, 140, 0.13);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(211, 148, 113, 0.48);
+    background-clip: content-box;
+  }
+
+  ::selection {
+    background: rgba(211, 148, 113, 0.26);
+  }
+}
+
 .vp-page:has(.interview-question-card) {
-  --interview-blue: #1967b3;
-  --interview-blue-soft: rgba(25, 103, 179, 0.12);
-  --interview-gold: #c58b24;
-  --interview-line: rgba(25, 103, 179, 0.24);
+  --interview-ink: #302c27;
+  --interview-ink-soft: #676057;
+  --interview-paper: #f8f2e6;
+  --interview-copper: #a95f3f;
+  --interview-copper-soft: rgba(169, 95, 63, 0.13);
+  --interview-line: rgba(93, 72, 52, 0.2);
+
+  position: relative;
+  isolation: isolate;
+  color: var(--interview-ink);
+  background: var(--interview-paper);
+  box-shadow:
+    inset 16px 0 30px -28px rgba(68, 45, 27, 0.78),
+    inset 1px 0 rgba(255, 255, 255, 0.72);
+
+  &::before {
+    position: absolute;
+    inset: var(--navbar-height) auto 0 calc(var(--sidebar-space) + 0.65rem);
+    z-index: -1;
+    width: 1px;
+    background: rgba(126, 76, 48, 0.16);
+    box-shadow:
+      7px 0 18px rgba(65, 42, 24, 0.08),
+      9px 0 rgba(255, 255, 255, 0.42);
+    content: "";
+    pointer-events: none;
+  }
 
   .vp-page-title h1 {
     display: inline;
-    padding: 0.08em 0.12em;
-    background: linear-gradient(transparent 58%, rgba(80, 154, 224, 0.32) 58%);
+    padding: 0.06em 0.1em;
+    color: var(--interview-ink);
+    font-family: "Source Han Serif SC", "Songti SC", "STSong", serif;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    background: linear-gradient(transparent 86%, var(--interview-copper-soft) 86%);
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
+  }
+
+  .vp-page-title .page-info {
+    color: var(--interview-ink-soft);
+  }
+
+  [vp-content] {
+    color: var(--interview-ink);
+    font-family: "Source Han Serif SC", "Songti SC", "STSong", serif;
+    font-size: 1.03rem;
+    line-height: 1.88;
+  }
+
+  #markdown-content > p {
+    text-align: justify;
+    text-justify: inter-ideograph;
+  }
+
+  #markdown-content > h2 > a,
+  #markdown-content > h3 > a {
+    color: inherit;
+  }
+
+  #markdown-content strong,
+  #markdown-content th {
+    color: #29251f;
   }
 
   .interview-question-card {
     position: relative;
     margin: 1.7rem 0 2.1rem;
-    padding: 1.2rem 1.35rem 1.25rem 1.55rem;
+    padding: 1.35rem 1.55rem 1.45rem 1.8rem;
     overflow: hidden;
-    border: 1px solid var(--interview-line);
-    border-left: 5px solid var(--interview-blue);
-    border-radius: 0 12px 12px 0;
+    border: 1px solid rgba(108, 82, 57, 0.23);
+    border-left: 6px solid var(--interview-copper);
+    border-radius: 2px 10px 10px 2px;
     background:
-      linear-gradient(100deg, var(--interview-blue-soft), transparent 74%),
-      var(--vp-c-bg-alt);
-    box-shadow: 0 10px 28px rgba(16, 55, 91, 0.07);
+      linear-gradient(112deg, rgba(255, 255, 255, 0.58), transparent 48%),
+      #f3eadb;
+    box-shadow:
+      0 13px 26px rgba(72, 48, 29, 0.09),
+      0 2px 4px rgba(72, 48, 29, 0.08),
+      inset 0 1px rgba(255, 255, 255, 0.72);
   }
 
   .interview-question-card::after {
     position: absolute;
-    top: -32px;
-    right: -18px;
-    width: 96px;
-    height: 96px;
-    border: 18px solid rgba(25, 103, 179, 0.06);
-    border-radius: 50%;
+    top: 0;
+    right: 0;
+    width: 2.8rem;
+    height: 2.8rem;
+    border-bottom: 1px solid rgba(108, 82, 57, 0.16);
+    border-left: 1px solid rgba(108, 82, 57, 0.12);
+    border-radius: 0 9px 0 5px;
+    background: linear-gradient(225deg, #e4d5c0 48%, transparent 50%);
+    box-shadow: -4px 4px 10px rgba(72, 48, 29, 0.055);
     content: "";
   }
 
   .interview-question-kicker {
-    color: var(--interview-gold);
-    font-size: 0.7rem;
+    color: var(--interview-copper);
+    font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+    font-size: 0.67rem;
     font-weight: 800;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.18em;
   }
 
   .interview-question-card p {
     position: relative;
     z-index: 1;
-    margin: 0.45rem 0 0;
-    color: var(--vp-c-text);
-    font-family: "Songti SC", "STSong", serif;
-    font-size: 1.2rem;
+    margin: 0.55rem 0 0;
+    color: var(--interview-ink);
+    font-family: "Source Han Serif SC", "Songti SC", "STSong", serif;
+    font-size: 1.18rem;
     font-weight: 700;
-    line-height: 1.7;
+    line-height: 1.82;
   }
 
   .interview-inference-note {
@@ -121,41 +283,182 @@
     align-items: baseline;
     margin: -0.8rem 0 2rem;
     padding: 0.75rem 0.95rem;
-    border: 1px dashed rgba(197, 139, 36, 0.48);
-    border-radius: 8px;
-    background: rgba(197, 139, 36, 0.08);
-    color: var(--vp-c-text-mute);
+    border: 1px dashed rgba(169, 95, 63, 0.42);
+    border-radius: 4px;
+    background: rgba(169, 95, 63, 0.065);
+    color: var(--interview-ink-soft);
     font-size: 0.82rem;
     line-height: 1.55;
   }
 
   .interview-inference-note strong {
-    color: var(--interview-gold);
+    color: var(--interview-copper);
   }
 
   #markdown-content > h2 {
     margin-top: 2.25rem;
     padding-bottom: 0.55rem;
     border-bottom: 1px solid var(--interview-line);
+    color: var(--interview-ink);
+    font-family: "Source Han Serif SC", "Songti SC", "STSong", serif;
+    letter-spacing: 0.01em;
   }
 
   #markdown-content > h2::before {
     display: inline-block;
-    width: 0.42rem;
-    height: 1.05em;
-    margin-right: 0.55rem;
-    border-radius: 2px;
-    background: var(--interview-blue);
+    width: 0.34rem;
+    height: 1.08em;
+    margin-right: 0.62rem;
+    border-radius: 1px;
+    background: var(--interview-copper);
+    box-shadow: 3px 0 0 rgba(169, 95, 63, 0.17);
     vertical-align: -0.1em;
     content: "";
   }
 
   #markdown-content > h3 {
-    color: var(--interview-blue);
+    color: #825039;
+    font-family: "Source Han Serif SC", "Songti SC", "STSong", serif;
+  }
+
+  #markdown-content blockquote {
+    border-color: rgba(169, 95, 63, 0.46);
+    background: rgba(255, 255, 255, 0.32);
+    color: var(--interview-ink-soft);
+  }
+
+  #markdown-content table {
+    overflow: hidden;
+    border: 1px solid rgba(94, 71, 49, 0.21);
+    border-radius: 4px;
+    background: rgba(255, 253, 247, 0.42);
+    box-shadow: 0 6px 18px rgba(72, 48, 29, 0.05);
+  }
+
+  #markdown-content tr:nth-child(2n) {
+    background: rgba(137, 98, 61, 0.045);
+  }
+
+  #markdown-content code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  }
+
+  #markdown-content .katex-display {
+    box-sizing: border-box;
+    max-width: 100%;
+    margin: 1.35rem 0;
+    padding: 0.45rem 0 0.7rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    text-align: center;
+    scrollbar-color: rgba(169, 95, 63, 0.48) transparent;
+    scrollbar-width: thin;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #markdown-content .katex-display > .katex {
+    display: inline-block;
+    min-width: max-content;
+    padding-inline: 0.25rem;
+  }
+
+  #markdown-content .katex-display::-webkit-scrollbar {
+    height: 7px;
+  }
+
+  #markdown-content .katex-display::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background: rgba(169, 95, 63, 0.48);
+    background-clip: padding-box;
+  }
+
+  .vp-page-nav {
+    border-color: var(--interview-line);
+  }
+}
+
+[data-theme="dark"] .vp-page:has(.interview-question-card) {
+  --interview-ink: #eee8de;
+  --interview-ink-soft: #c2b8aa;
+  --interview-paper: #25231f;
+  --interview-copper: #dc9875;
+  --interview-copper-soft: rgba(220, 152, 117, 0.18);
+  --interview-line: rgba(224, 198, 168, 0.2);
+
+  background: var(--interview-paper);
+  box-shadow:
+    inset 18px 0 34px -28px rgba(0, 0, 0, 0.92),
+    inset 1px 0 rgba(255, 236, 210, 0.045);
+
+  &::before {
+    background: rgba(213, 138, 100, 0.13);
+    box-shadow:
+      7px 0 20px rgba(0, 0, 0, 0.22),
+      9px 0 rgba(255, 238, 214, 0.025);
+  }
+
+  #markdown-content strong,
+  #markdown-content th {
+    color: #fff6e9;
+  }
+
+  [vp-content] {
+    text-shadow: 0 1px rgba(0, 0, 0, 0.16);
+  }
+
+  .interview-question-card {
+    border-color: rgba(218, 179, 139, 0.19);
+    border-left-color: var(--interview-copper);
+    background:
+      linear-gradient(112deg, rgba(255, 226, 191, 0.035), transparent 48%),
+      #302a23;
+    box-shadow:
+      0 14px 30px rgba(0, 0, 0, 0.24),
+      0 2px 5px rgba(0, 0, 0, 0.2),
+      inset 0 1px rgba(255, 236, 210, 0.05);
+  }
+
+  .interview-question-card::after {
+    border-color: rgba(218, 179, 139, 0.09);
+    background: linear-gradient(225deg, #473b30 48%, transparent 50%);
+    box-shadow: -4px 4px 10px rgba(0, 0, 0, 0.14);
+  }
+
+  #markdown-content > h3 {
+    color: #e3a07d;
+  }
+
+  #markdown-content blockquote {
+    background: rgba(255, 242, 220, 0.025);
+  }
+
+  #markdown-content table {
+    border-color: rgba(214, 184, 151, 0.17);
+    background: rgba(255, 242, 220, 0.025);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.16);
+  }
+
+  #markdown-content tr:nth-child(2n) {
+    background: rgba(255, 226, 191, 0.025);
+  }
+
+  #markdown-content .katex-display {
+    scrollbar-color: rgba(220, 152, 117, 0.5) transparent;
+  }
+
+  #markdown-content .katex-display::-webkit-scrollbar-thumb {
+    background: rgba(220, 152, 117, 0.5);
+    background-clip: padding-box;
   }
 }
 
 @media (max-width: 719px) {
+  .vp-page:has(.interview-question-card)::before {
+    display: none;
+  }
+
   .vp-page:has(.interview-question-card) .interview-question-card {
     margin-inline: -0.25rem;
     padding: 1rem 1rem 1.05rem 1.15rem;
@@ -170,16 +473,16 @@
   --kb-home-ink: #20242b;
   --kb-home-muted: #666b73;
   --kb-home-line: rgba(37, 43, 52, 0.12);
-  --kb-home-paper: #fbfaf7;
-  --kb-home-blue: #315fbe;
-  --kb-home-blue-soft: rgba(49, 95, 190, 0.1);
-  --kb-home-copper: #b96847;
+  --kb-home-paper: #f8f2e6;
+  --kb-home-blue: #9a5c3f;
+  --kb-home-blue-soft: rgba(154, 92, 63, 0.11);
+  --kb-home-copper: #b06a49;
 
   overflow: hidden;
   background:
-    radial-gradient(circle at 18% 13%, rgba(49, 95, 190, 0.08), transparent 23rem),
-    radial-gradient(circle at 88% 34%, rgba(185, 104, 71, 0.08), transparent 25rem),
-    var(--vp-c-bg);
+    radial-gradient(circle at 18% 13%, rgba(169, 95, 63, 0.065), transparent 23rem),
+    radial-gradient(circle at 88% 34%, rgba(185, 104, 71, 0.07), transparent 25rem),
+    var(--kb-home-paper);
 
   .vp-hero-info-wrapper {
     position: relative;
@@ -202,8 +505,8 @@
     width: 15rem;
     height: 15rem;
     box-shadow:
-      0 0 0 2.2rem rgba(49, 95, 190, 0.025),
-      0 0 0 5.4rem rgba(49, 95, 190, 0.018);
+      0 0 0 2.2rem rgba(169, 95, 63, 0.025),
+      0 0 0 5.4rem rgba(169, 95, 63, 0.018);
   }
 
   .vp-hero-info-wrapper::after {
@@ -237,7 +540,7 @@
     align-items: center;
     margin-bottom: 1.2rem;
     padding: 0.42rem 0.7rem;
-    border: 1px solid rgba(49, 95, 190, 0.2);
+    border: 1px solid rgba(169, 95, 63, 0.2);
     border-radius: 99px;
     background: rgba(255, 255, 255, 0.48);
     color: var(--kb-home-blue);
@@ -290,7 +593,7 @@
   .vp-hero-action.primary {
     border-color: var(--kb-home-blue);
     background: var(--kb-home-blue);
-    box-shadow: 0 12px 28px rgba(49, 95, 190, 0.2);
+    box-shadow: 0 12px 28px rgba(169, 95, 63, 0.2);
   }
 
   .vp-hero-action.default {
@@ -431,9 +734,9 @@
   }
 
   .kb-pipeline-result {
-    border-color: rgba(49, 95, 190, 0.26);
+    border-color: rgba(169, 95, 63, 0.26);
     background:
-      linear-gradient(145deg, rgba(49, 95, 190, 0.1), transparent 64%),
+      linear-gradient(145deg, rgba(169, 95, 63, 0.1), transparent 64%),
       rgba(255, 255, 255, 0.74);
   }
 
@@ -553,7 +856,7 @@
     border: 1px solid var(--kb-home-line);
     border-radius: 1.5rem;
     background:
-      radial-gradient(circle at 90% 12%, rgba(49, 95, 190, 0.12), transparent 15rem),
+      radial-gradient(circle at 90% 12%, rgba(169, 95, 63, 0.11), transparent 15rem),
       var(--kb-home-paper);
     box-shadow: 0 28px 80px rgba(31, 38, 49, 0.08);
   }
@@ -667,10 +970,10 @@
   --kb-home-ink: #f0eee9;
   --kb-home-muted: #a8abb2;
   --kb-home-line: rgba(255, 255, 255, 0.11);
-  --kb-home-paper: #202328;
-  --kb-home-blue: #7ea2ee;
-  --kb-home-blue-soft: rgba(126, 162, 238, 0.12);
-  --kb-home-copper: #df8968;
+  --kb-home-paper: #25231f;
+  --kb-home-blue: #d39471;
+  --kb-home-blue-soft: rgba(211, 148, 113, 0.14);
+  --kb-home-copper: #df9876;
 
   .vp-hero-infos::before,
   .vp-hero-action.default,
@@ -681,7 +984,7 @@
 
   .kb-pipeline-result {
     background:
-      linear-gradient(145deg, rgba(126, 162, 238, 0.11), transparent 64%),
+      linear-gradient(145deg, rgba(211, 148, 113, 0.12), transparent 64%),
       rgba(34, 37, 43, 0.72);
   }
 

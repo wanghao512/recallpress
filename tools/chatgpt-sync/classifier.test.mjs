@@ -1,7 +1,46 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createQuestionClassifier } from "./classifier.mjs";
+import { createQuestionClassifier, fallbackQuestionList } from "./classifier.mjs";
+
+test("没有可用模型时可以按一行一题整理问题素材", () => {
+  assert.deepEqual(fallbackQuestionList("1. 什么是 PPO？\n- 什么是 GAE？\n什么是 PPO？"), [
+    "什么是 PPO？",
+    "什么是 GAE？",
+  ]);
+});
+
+test("配置模型后从混合素材中提取并去重问题", async () => {
+  let capturedOptions;
+  const classifier = createQuestionClassifier({
+    apiKey: "test-key",
+    fetch: async (_url, options) => {
+      capturedOptions = options;
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content:
+                  '{"questions":["什么是 PPO？","PPO-Clip 的目标函数如何计算？","什么是 PPO？"]}',
+              },
+            },
+          ],
+        }),
+        { headers: { "Content-Type": "application/json" }, status: 200 },
+      );
+    },
+  });
+
+  const questions = await classifier.organizeQuestions(
+    "PPO 复习：先了解 PPO 的定义，然后掌握 PPO-Clip 目标函数的计算。",
+  );
+  const body = JSON.parse(capturedOptions.body);
+
+  assert.deepEqual(questions, ["什么是 PPO？", "PPO-Clip 的目标函数如何计算？"]);
+  assert.equal(body.max_tokens, 2_500);
+  assert.match(body.messages[1].content, /不补充输入未提到的新主题/);
+});
 
 test("分类器使用 OpenAI 兼容请求并携带已有分类", async () => {
   let capturedUrl = "";

@@ -4,6 +4,7 @@ import path from "node:path";
 const DEFAULT_BASE_URL = "https://api.openai.com";
 const DEFAULT_ENDPOINT = "/v1/chat/completions";
 const DEFAULT_MODEL = "gpt-4.1-mini";
+const MAX_ORGANIZED_QUESTIONS = 100;
 
 function clean(value, maxLength = 200) {
   return String(value ?? "").replace(/\r\n?/g, "\n").trim().slice(0, maxLength);
@@ -82,6 +83,37 @@ function duplicatePromptFor(question, existingQuestions) {
     'JSON 格式：{"duplicateId":"候选 id；不重复时为空字符串","reason":"简短理由"}',
     `newQuestion=${JSON.stringify(clean(question, 2_000))}`,
     `candidates=${JSON.stringify(existingQuestions.map(({ id, question: candidateQuestion }) => ({ id, question: clean(candidateQuestion, 300) })))}`,
+  ].join("\n");
+}
+
+export function fallbackQuestionList(value) {
+  const seen = new Set();
+  const questions = [];
+
+  for (const line of String(value ?? "").split(/\n/u)) {
+    const question = clean(line.replace(/^\s*(?:[-*•]\s+|\d{1,3}[.、．)]\s*)/u, ""), 2_000);
+    if (!question || seen.has(question)) continue;
+    seen.add(question);
+    questions.push(question);
+    if (questions.length >= MAX_ORGANIZED_QUESTIONS) break;
+  }
+
+  return questions;
+}
+
+function questionOrganizerPromptFor(value) {
+  return [
+    "把用户提供的复习素材整理成可以逐题提问的问题清单。",
+    "输入可能是编号列表、连续段落、课程提纲、夹杂说明的文本，或已经整理好的问题。",
+    "要求：",
+    "1. 只提取输入中真实存在的问题或明确的待复习知识点，不回答问题，不补充输入未提到的新主题。",
+    "2. 将复合但彼此独立的问题合理拆开；同一问题的限定条件和上下文必须保留。",
+    "3. 合并语义重复项，保持原始顺序。",
+    "4. 每一项必须是可以单独发送给 ChatGPT 的完整中文问题。",
+    `5. 最多返回 ${MAX_ORGANIZED_QUESTIONS} 项。`,
+    "6. 只返回 JSON，不要 Markdown，不要解释。",
+    'JSON 格式：{"questions":["问题一","问题二"]}',
+    `input=${JSON.stringify(clean(value, 30_000))}`,
   ].join("\n");
 }
 
@@ -194,6 +226,19 @@ export function createQuestionClassifier(options = {}) {
         throw new Error("重复题检测模型返回了未知候选 ID");
       }
       return { duplicateId, reason: clean(result?.reason, 160) };
+    },
+    async organizeQuestions(value) {
+      if (!enabled) return null;
+      const result = await completeJson(
+        questionOrganizerPromptFor(value),
+        "你是一个严格输出 JSON 的学习问题清单整理器。",
+        2_500,
+        "question_organization",
+      );
+      if (!Array.isArray(result?.questions)) throw new Error("模型没有返回问题清单");
+      const questions = fallbackQuestionList(result.questions.map((question) => clean(question, 2_000)).join("\n"));
+      if (!questions.length) throw new Error("模型没有从输入中识别出可提问的问题");
+      return questions;
     },
   };
 }
